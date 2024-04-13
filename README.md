@@ -1,6 +1,6 @@
 # Docker Wordpress
 
-Projeto com configurações básicas para iniciar um projeto wordpress com dokcer
+Projeto com configurações básicas para iniciar um projeto wordpress com docker
 
 ## Sobre o projeto
 
