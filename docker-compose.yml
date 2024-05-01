@@ -1,36 +1,110 @@
 version: '3.8'
 
+networks:
+  app-network:
+    driver: bridge
+
 services:
   wordpress:
     image: wordpress:php8.3-apache
+    networks:
+      - app-network
     build:
       context: dockerfiles
       dockerfile: wordpress.dockerfile
     container_name: estudo-wp
     volumes:
       - ./wordpress:/var/www/html
+      - ./themes:/var/www/html/wp-content/themes
       - ./dockerfiles/uploads.ini:/usr/local/etc/php/conf.d/uploads.ini
+      - /var/www/html/wp-content/themes/estudo/vendor
     environment:
       WORDPRESS_DEBUG: 1
-      WORDPRESS_DB_NAME: wordpress
       WORDPRESS_TABLE_PREFIX: wp_
       WORDPRESS_DB_HOST: db
-      WORDPRESS_DB_USER: root
+      WORDPRESS_DB_NAME: wordpress
+      WORDPRESS_DB_USER: wordpress
       WORDPRESS_DB_PASSWORD: wordpress
       XDEBUG_MODE: debug
       XDEBUG_CONFIG: client_host=host.docker.internal client_port=9003
       XDEBUG_SESSION: start
+
+      WORDPRESS_CONFIG_EXTRA: |
+        define('FS_METHOD', 'direct');
+        // define('WP_CACHE', false);
+        define('ENVIRONMENT', 'development');
+        if (!defined('WP_HOME')) {
+          /* force our home url */
+          define('WP_HOME', 'http://localhost:8080');
+          define('WP_SITEURL', WP_HOME);
+        }
+        define('WP_ALLOW_REPAIR', true);
     depends_on:
+      - db
+    links:
       - db
     ports:
       - 8080:80
 
+  wordpress-cli:
+    image: wordpress:cli
+    networks:
+      - app-network
+    build:
+      context: dockerfiles
+      dockerfile: wordpress-cli.dockerfile
+    container_name: estudo-wpcli
+    volumes:
+      - ./wordpress:/var/www/html
+      - ./themes:/var/www/html/wp-content/themes
+      - /var/www/html/wp-content/themes/estudo/vendor
+      - ./dockerfiles/uploads.ini:/usr/local/etc/php/conf.d/uploads.ini
+    depends_on:
+      - db
+      - wordpress
+    links:
+      - db
+      - wordpress
+    working_dir: /var/www/html
+    entrypoint: sh -c "/wait && wordpress-cli-entrypoint.sh"
+    environment:
+      WAIT_HOSTS: db:3306
+      WAIT_BEFORE: 30
+      WAIT_AFTER: 15
+      WAIT_TIMEOUT: 300
+      WAIT_SLEEP_INTERVAL: 30
+      WAIT_HOST_CONNECT_TIMEOUT: 30
+
+      WORDPRESS_DEBUG: 1
+      WORDPRESS_TABLE_PREFIX: wp_
+      WORDPRESS_DB_HOST: db
+      WORDPRESS_DB_NAME: wordpress
+      WORDPRESS_DB_USER: wordpress
+      WORDPRESS_DB_PASSWORD: wordpress
+      XDEBUG_MODE: debug
+      XDEBUG_CONFIG: client_host=host.docker.internal client_port=9003
+      XDEBUG_SESSION: start
+
+      WORDPRESS_CONFIG_EXTRA: |
+        define('FS_METHOD', 'direct');
+        // define('WP_CACHE', false);
+        define('ENVIRONMENT', 'development');
+        if (!defined('WP_HOME')) {
+          /* force our home url */
+          define('WP_HOME', 'http://localhost:8080');
+          define('WP_SITEURL', WP_HOME);
+        }
+        define('WP_ALLOW_REPAIR', true);
+
   db:
     image: mysql:8.0.36
+    command: --host-cache-size=0
+    networks:
+      - app-network
     container_name: estudo-db
     restart: always
     environment:
-      MYSQL_ROOT_PASSWORD: wordpress
+      MYSQL_ROOT_PASSWORD: root
       MYSQL_USER: wordpress
       MYSQL_PASSWORD: wordpress
       MYSQL_DATABASE: wordpress

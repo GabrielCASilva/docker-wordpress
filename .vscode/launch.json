@@ -11,6 +11,7 @@
             "port": 9003,
             // Path to the local copy of the WordPress installation.
             "pathMappings": {
+                "/var/www/html/wp-content/themes": "${workspaceRoot}/themes",
                 "/var/www/html": "${workspaceRoot}/wordpress"
             },
         },
